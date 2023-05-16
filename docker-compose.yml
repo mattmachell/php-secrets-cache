@@ -1,0 +1,69 @@
+---
+version: "3"
+
+services:
+
+  composer:
+    image: composer:2.2
+    working_dir: /var/www
+    volumes:
+       - ./:/var/www
+    command: compose
+
+  psalm:
+    build:
+      context: .
+    working_dir: /var/www
+    command: ./vendor/bin/psalm --show-info=true
+    environment:
+        docker: "true"
+    volumes:
+      - ./:/var/www   
+
+  phplint:
+    build:
+      context: .
+    working_dir: /var/www
+    command: ./vendor/bin/phplint ./ --exclude=vendor
+    environment:
+        docker: "true"
+    volumes:
+      - ./:/var/www              
+
+  unit-tests: 
+      build:
+        context: .
+      working_dir: /var/www
+      command: ./vendor/bin/phpunit test/unit --bootstrap test/bootstrap.php --coverage-text --coverage-filter ./src
+      environment:
+          docker: "true"
+      env_file:
+        - .env
+      ports:
+          - 8000:8080
+      volumes:
+          - ./:/var/www
+
+  integration-tests: 
+      build:
+        context: .
+      working_dir: /var/www
+      depends_on: [localstack]
+      command: ./vendor/bin/phpunit test/integration --bootstrap test/bootstrap.php
+      environment:
+          docker: "true"
+      env_file:
+        - .env
+      ports:
+          - 8000:8080
+      volumes:
+          - ./:/var/www
+  
+  localstack:
+    image: localstack/localstack-full:0.13
+    volumes:
+      - "./localstack/init:/docker-entrypoint-initaws.d"
+    environment:
+      AWS_DEFAULT_REGION: eu-west-1
+      HOSTNAME_EXTERNAL: localstack
+      SERVICES: secretsmanager
